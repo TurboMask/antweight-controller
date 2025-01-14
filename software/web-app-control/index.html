@@ -122,6 +122,7 @@ class BLERobot {
         this.periodicReconnectTimer = null
         
         this.encoder = new TextEncoder()
+        this.moving = false
 
         this._connected = false
         this._periodicSending()
@@ -239,7 +240,7 @@ async function checkRequirements() {
 function setupJoystick(robot) {
     const joystick = document.getElementById('joystick')
     const ctx = joystick.getContext('2d')
-    let radius, radiusToEdge, centerX, centerY, lastX, lastY, offsetX, offsetY
+    let radius, radiusToEdge, centerX, centerY, lastX, lastY, offsetX, offsetY, touchID
 
     function updateBaseParams() {
         const rect = joystick.getBoundingClientRect()
@@ -280,6 +281,7 @@ function setupJoystick(robot) {
         let y = eventY - rect.top
         offsetX = lastX - x
         offsetY = lastY - y
+        this.moving = true
     }
 
     function updateJoystick(eventX, eventY) {
@@ -317,6 +319,8 @@ function setupJoystick(robot) {
         offsetY = 0
         drawJoystick(centerX, centerY)
         robot.setSpeed(0, 0)
+        this.moving = false
+        touchID = 0
     }
 
     joystick.addEventListener('mousedown', (event) => {
@@ -324,30 +328,36 @@ function setupJoystick(robot) {
             startMovingJoystick(event.clientX, event.clientY)
         }
     })
-    joystick.addEventListener('mousemove', (event) => {
-        if (event.buttons === 1) {
+    document.addEventListener('mousemove', (event) => {
+        if (event.buttons === 1 && this.moving) {
             updateJoystick(event.clientX, event.clientY)
         }
     })
-    joystick.addEventListener('mouseup', (event) => {
+    document.addEventListener('mouseup', (event) => {
         resetJoystick()
     })
 
     joystick.addEventListener('touchstart', (event) => {
-        if (event.buttons === 1) {
-            startMovingJoystick(touch.clientX, touch.clientY)
+        for (const touch in event.touches) {
+            if (touch.target == joystick) {
+                touchID = touch.identifier
+                startMovingJoystick(touch.clientX, touch.clientY)
+            }
         }
     })
-    joystick.addEventListener('touchmove', (event) => {
-        for (let i = 0, len = event.touches.length; i < len; i++) {
-            const touch = event.touches[i]
-            if (touch.target == joystick) {
+    document.addEventListener('touchmove', (event) => {
+        for (const touch in event.touches) {
+            if (touch.id == touchID) {
                 updateJoystick(touch.clientX, touch.clientY)
             }
         }
     })
-    joystick.addEventListener('touchend', () => {
-        resetJoystick()
+    document.addEventListener('touchend', (event) => {
+        for (const touch in event.touches) {
+            if (touch.id == touchID) {
+                resetJoystick()
+            }
+        }
     });
 
     screen.orientation.addEventListener('change', () => {
