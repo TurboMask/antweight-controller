@@ -239,7 +239,7 @@ async function checkRequirements() {
 function setupJoystick(robot) {
     const joystick = document.getElementById('joystick')
     const ctx = joystick.getContext('2d')
-    let radius, radiusToEdge, centerX, centerY
+    let radius, radiusToEdge, centerX, centerY, lastX, lastY, offsetX, offsetY
 
     function updateBaseParams() {
         const rect = joystick.getBoundingClientRect()
@@ -256,7 +256,7 @@ function setupJoystick(robot) {
         centerY = joystick.height / 2
     }
 
-    function drawJoystick(indicatorX = centerX, indicatorY = centerY) {
+    function drawJoystick(indicatorX, indicatorY) {
         ctx.clearRect(0, 0, joystick.width, joystick.height)
         ctx.beginPath()
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
@@ -265,10 +265,21 @@ function setupJoystick(robot) {
         ctx.closePath()
 
         ctx.beginPath()
-        ctx.arc(indicatorX, indicatorY, radiusDot, 0, Math.PI * 2)
+        ctx.arc(indicatorX + offsetX, indicatorY + offsetY, radiusDot, 0, Math.PI * 2)
         ctx.fillStyle = 'red'
         ctx.fill()
         ctx.closePath()
+
+        lastX = indicatorX
+        lastY = indicatorY
+    }
+
+    function startMovingJoystick(eventX, eventY) {
+        const rect = joystick.getBoundingClientRect()
+        let x = eventX - rect.left
+        let y = eventY - rect.top
+        offsetX = lastX - x
+        offsetY = lastY - y
     }
 
     function updateJoystick(eventX, eventY) {
@@ -295,14 +306,32 @@ function setupJoystick(robot) {
         drawJoystick(x, y)
     }
 
+    function resetJoystick()
+    {
+        offsetX = 0
+        offsetY = 0
+        drawJoystick(centerX, centerY)
+        robot.setSpeed(0, 0)
+    }
+
+    joystick.addEventListener('mousedown', (event) => {
+        if (event.buttons === 1) {
+            startMovingJoystick(event.clientX, event.clientY)
+        }
+    })
     joystick.addEventListener('mousemove', (event) => {
         if (event.buttons === 1) {
             updateJoystick(event.clientX, event.clientY)
         }
     })
     joystick.addEventListener('mouseup', (event) => {
-        drawJoystick()
-        robot.setSpeed(0, 0)
+        resetJoystick()
+    })
+
+    joystick.addEventListener('touchstart', (event) => {
+        if (event.buttons === 1) {
+            startMovingJoystick(touch.clientX, touch.clientY)
+        }
     })
     joystick.addEventListener('touchmove', (event) => {
         for (let i = 0, len = event.touches.length; i < len; i++) {
@@ -312,10 +341,8 @@ function setupJoystick(robot) {
             }
         }
     })
-
     joystick.addEventListener('touchend', () => {
-        drawJoystick()
-        robot.setSpeed(0, 0)
+        resetJoystick()
     });
 
     screen.orientation.addEventListener('change', () => {
@@ -324,7 +351,7 @@ function setupJoystick(robot) {
     })
     
     updateBaseParams()
-    drawJoystick()
+    resetJoystick()
 }
 
 function setupServoControl(robot) {
