@@ -242,11 +242,13 @@ function setupJoystick(robot) {
     let radius, radiusToEdge, centerX, centerY
 
     function updateBaseParams() {
-        const docH = document.body.clientHeight
-        const docW = document.body.clientWidth
-        const sidePx = docH > docW ? docW : docH
-        joystick.width = sidePx
-        joystick.height = sidePx
+        const rect = joystick.getBoundingClientRect()
+        const maxH = document.body.clientHeight - rect.top * 2
+        const maxW = document.body.clientWidth - rect.left * 2
+        const joystickSize = Math.min(maxH, maxW)
+
+        joystick.width = joystickSize
+        joystick.height = joystickSize
         radius = Math.min(joystick.width, joystick.height) / 2
         radiusDot = radius / 4
         radiusToEdge = radius - radiusDot
