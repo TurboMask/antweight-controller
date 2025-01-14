@@ -249,11 +249,11 @@ function setupJoystick(robot) {
 
         joystick.width = joystickSize
         joystick.height = joystickSize
-        radius = Math.min(joystick.width, joystick.height) / 2
+        radius = joystickSize / 2
         radiusDot = radius / 4
         radiusToEdge = radius - radiusDot
-        centerX = joystick.width / 2
-        centerY = joystick.height / 2
+        centerX = joystickSize / 2
+        centerY = joystickSize / 2
     }
 
     function drawJoystick(indicatorX, indicatorY) {
@@ -265,7 +265,7 @@ function setupJoystick(robot) {
         ctx.closePath()
 
         ctx.beginPath()
-        ctx.arc(indicatorX + offsetX, indicatorY + offsetY, radiusDot, 0, Math.PI * 2)
+        ctx.arc(indicatorX, indicatorY, radiusDot, 0, Math.PI * 2)
         ctx.fillStyle = 'red'
         ctx.fill()
         ctx.closePath()
@@ -286,11 +286,16 @@ function setupJoystick(robot) {
         const rect = joystick.getBoundingClientRect()
         let x = eventX - rect.left
         let y = eventY - rect.top
-        const dx = x - centerX
-        const dy = y - centerY
+        let dx = x - centerX + offsetX
+        let dy = y - centerY + offsetY
         
         const distance = Math.sqrt(dx * dx + dy * dy)
-        const mag = distance / radiusToEdge
+        let mag = distance / radiusToEdge
+        if(mag > 1.0){
+            dx = Math.round(dx / mag)
+            dy = Math.round(dy / mag)
+            mag = 1.0
+        }
 
         let jx = (dx / radiusToEdge) * 255
         let jy = -(dy / radiusToEdge) * 255
@@ -303,7 +308,7 @@ function setupJoystick(robot) {
         right = Math.max(-255, Math.min(255, Math.round(right)))
         
         robot.setSpeed(left, right)
-        drawJoystick(x, y)
+        drawJoystick(dx + centerX, dy + centerY)
     }
 
     function resetJoystick()
@@ -347,7 +352,7 @@ function setupJoystick(robot) {
 
     screen.orientation.addEventListener('change', () => {
         updateBaseParams()
-        drawJoystick()
+        resetJoystick()
     })
     
     updateBaseParams()
