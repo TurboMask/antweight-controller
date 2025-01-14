@@ -3,11 +3,11 @@
    Requires the ESP32Servo library.
 */
 
-#define ROBOT_NAME "Anty"
+#define ROBOT_NAME "Kiveris"
 
 // Uncomment your variant.
-// #define PINS_KMS_2024 1 // Kaunas Makerspace Antweight Workshop October 2024
-#define PINS_KMS_2023 1 // Kaunas Makerspace Antweight Workshop September 2023
+#define PINS_KMS_2024 1 // Kaunas Makerspace Antweight Workshop October 2024
+// #define PINS_KMS_2023 1 // Kaunas Makerspace Antweight Workshop September 2023
 // #define PINS_NTA_2023 1 // No Trolls Allowed Antweight Workshop Summer 2023
 
 // Uncomment this if the red motor wire is on the left when looking from the back
