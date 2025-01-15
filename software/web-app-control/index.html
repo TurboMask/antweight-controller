@@ -237,140 +237,138 @@ async function checkRequirements() {
     debug("Labas! Spausk „Prisijungti“ ir prisijunk prie savo roboto.")
 }
 
-function setupJoystick(robot) {
-    const joystick = document.getElementById('joystick')
-    const ctx = joystick.getContext('2d')
-    let radius, radiusToEdge, centerX, centerY, lastX, lastY, offsetX, offsetY, touchID
+class Joystick {
+    constructor(robot) {
+        this.robot = robot
+        this.joystickCanvas = document.getElementById('joystick')
+        this.ctx = this.joystickCanvas.getContext('2d')
 
-    function updateBaseParams() {
-        const rect = joystick.getBoundingClientRect()
+        this.joystickCanvas.addEventListener('mousedown', (event) => {
+            if (event.buttons === 1) {
+                this.startMovingJoystick(event.clientX, event.clientY)
+            }
+        })
+        document.addEventListener('mousemove', (event) => {
+            if (event.buttons === 1 && this.moving) {
+                this.updateJoystick(event.clientX, event.clientY)
+            }
+        })
+        document.addEventListener('mouseup', (event) => {
+            this.resetJoystick()
+        })
+
+        this.joystickCanvas.addEventListener('touchstart', (event) => {
+            for (let i = 0, len = event.touches.length; i < len; i++) {
+                const touch = event.touches[i]
+                if (touch.target == this.joystickCanvas) {
+                    this.touchID = touch.identifier
+                    this.startMovingJoystick(touch.clientX, touch.clientY)
+                }
+            }
+        })
+        document.addEventListener('touchmove', (event) => {
+            for (let i = 0, len = event.touches.length; i < len; i++) {
+                const touch = event.touches[i]
+                if (touch.identifier == this.touchID) {
+                    this.updateJoystick(touch.clientX, touch.clientY)
+                }
+            }
+        })
+        document.addEventListener('touchend', (event) => {
+            for (let i = 0, len = event.changedTouches.length; i < len; i++) {
+                const touch = event.changedTouches[i]
+                if (touch.identifier == this.touchID) {
+                    this.resetJoystick()
+                }
+            }
+        })
+        
+        this.updateBaseParams()
+        this.resetJoystick()
+    }
+    
+    updateBaseParams() {
+        const rect = this.joystickCanvas.getBoundingClientRect()
         const margin = rect.top > rect.left ? rect.left : rect.top
-        const maxH = document.body.clientHeight - rect.top - margin
-        const maxW = document.body.clientWidth - rect.left - margin
-        const joystickSize = Math.min(maxH, maxW)
+        const maxH = document.body.clientHeight - margin * 2
+        const maxW = document.body.clientWidth - margin * 2
+        this.joystickSize = Math.min(maxH, maxW)
 
-        joystick.width = joystickSize
-        joystick.height = joystickSize
-        radius = joystickSize / 2
-        radiusDot = radius / 4
-        radiusToEdge = radius - radiusDot
-        centerX = joystickSize / 2
-        centerY = joystickSize / 2
+        this.joystickCanvas.width = this.joystickSize
+        this.joystickCanvas.height = this.joystickSize
+        this.radius = this.joystickSize / 2
+        this.radiusDot = this.radius / 4
+        this.radiusToEdge = this.radius - this.radiusDot
+        this.centerX = this.joystickSize / 2
+        this.centerY = this.joystickSize / 2
     }
 
-    function drawJoystick(indicatorX, indicatorY) {
-        ctx.clearRect(0, 0, joystick.width, joystick.height)
+    drawJoystick(indicatorX, indicatorY) {
+        let ctx = this.ctx
+        ctx.clearRect(0, 0, this.joystickCanvas.width, this.joystickCanvas.height)
         ctx.beginPath()
-        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2)
+        ctx.arc(this.centerX, this.centerY, this.radius, 0, Math.PI * 2)
         ctx.fillStyle = 'white'
         ctx.fill()
         ctx.closePath()
 
         ctx.beginPath()
-        ctx.arc(indicatorX, indicatorY, radiusDot, 0, Math.PI * 2)
+        ctx.arc(indicatorX, indicatorY, this.radiusDot, 0, Math.PI * 2)
         ctx.fillStyle = 'red'
         ctx.fill()
         ctx.closePath()
 
-        lastX = indicatorX
-        lastY = indicatorY
+        this.lastX = indicatorX
+        this.lastY = indicatorY
     }
 
-    function startMovingJoystick(eventX, eventY) {
-        const rect = joystick.getBoundingClientRect()
+    startMovingJoystick(eventX, eventY) {
+        const rect = this.joystickCanvas.getBoundingClientRect()
         let x = eventX - rect.left
         let y = eventY - rect.top
-        offsetX = lastX - x
-        offsetY = lastY - y
+        this.offsetX = this.lastX - x
+        this.offsetY = this.lastY - y
         this.moving = true
     }
 
-    function updateJoystick(eventX, eventY) {
-        const rect = joystick.getBoundingClientRect()
+    updateJoystick(eventX, eventY) {
+        const rect = this.joystickCanvas.getBoundingClientRect()
         let x = eventX - rect.left
         let y = eventY - rect.top
-        let dx = x - centerX + offsetX
-        let dy = y - centerY + offsetY
+        let dx = x - this.centerX + this.offsetX
+        let dy = y - this.centerY + this.offsetY
         
         const distance = Math.sqrt(dx * dx + dy * dy)
-        let mag = distance / radiusToEdge
+        let mag = distance / this.radiusToEdge
         if(mag > 1.0){
             dx = Math.round(dx / mag)
             dy = Math.round(dy / mag)
             mag = 1.0
         }
 
-        let jx = (dx / radiusToEdge) * 255
-        let jy = -(dy / radiusToEdge) * 255
+        let jx = (dx / this.radiusToEdge) * 255
+        let jy = -(dy / this.radiusToEdge) * 255
 
-        left = jy + jx
-        right = jy - jx
+        let left = jy + jx
+        let right = jy - jx
         left = left * mag
         right = right * mag
         left = Math.max(-255, Math.min(255, Math.round(left)))
         right = Math.max(-255, Math.min(255, Math.round(right)))
         
-        robot.setSpeed(left, right)
-        drawJoystick(dx + centerX, dy + centerY)
+        this.robot.setSpeed(left, right)
+        this.drawJoystick(dx + this.centerX, dy + this.centerY)
     }
 
-    function resetJoystick()
-    {
-        offsetX = 0
-        offsetY = 0
-        drawJoystick(centerX, centerY)
-        robot.setSpeed(0, 0)
-        moving = false
-        touchID = -1
-    }
-
-    joystick.addEventListener('mousedown', (event) => {
-        if (event.buttons === 1) {
-            startMovingJoystick(event.clientX, event.clientY)
-        }
-    })
-    document.addEventListener('mousemove', (event) => {
-        if (event.buttons === 1 && moving) {
-            updateJoystick(event.clientX, event.clientY)
-        }
-    })
-    document.addEventListener('mouseup', (event) => {
-        resetJoystick()
-    })
-
-    joystick.addEventListener('touchstart', (event) => {
-        for (let i = 0, len = event.touches.length; i < len; i++) {
-            const touch = event.touches[i]
-            if (touch.target == joystick) {
-                touchID = touch.identifier
-                startMovingJoystick(touch.clientX, touch.clientY)
-            }
-        }
-    })
-    document.addEventListener('touchmove', (event) => {
-        for (let i = 0, len = event.touches.length; i < len; i++) {
-            const touch = event.touches[i]
-            if (touch.identifier == touchID) {
-                updateJoystick(touch.clientX, touch.clientY)
-            }
-        }
-    })
-    document.addEventListener('touchend', (event) => {
-        for (let i = 0, len = event.changedTouches.length; i < len; i++) {
-            const touch = event.changedTouches[i]
-            if (touch.identifier == touchID) {
-                resetJoystick()
-            }
-        }
-    })
-
-    screen.orientation.addEventListener('change', () => {
-        updateBaseParams()
-        resetJoystick()
-    })
-    
-    updateBaseParams()
     resetJoystick()
+    {
+        this.offsetX = 0
+        this.offsetY = 0
+        this.drawJoystick(this.centerX, this.centerY)
+        this.robot.setSpeed(0, 0)
+        this.moving = false
+        this.touchID = -1
+    }
 }
 
 function setupServoControl(robot) {
@@ -390,21 +388,6 @@ function setupServoControl(robot) {
         robot.setServoRight(e.target.value)
         localStorage.servoRight = e.target.value
     })
-}
-
-function setupFullscreenControl() {
-    function requestFullscreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen()
-        } else {
-            document.exitFullscreen()
-        }
-    }
-    document.body.addEventListener('dblclick', (event) => {
-        if (!document.fullscreenElement) requestFullscreen()
-    })
-    const fullscreenBtn = document.querySelector('.fullscreen-btn')
-    fullscreenBtn.addEventListener('click', requestFullscreen)
 }
 
 function debug(...args) {
@@ -428,12 +411,41 @@ function connectBLE() {
 
 checkRequirements()
 setupServoControl(robot)
-setupJoystick(robot)
+const joystick = new Joystick(robot)
+
+function screenChanged()
+{
+    joystick.updateBaseParams()
+    joystick.resetJoystick()
+}
+
+function setupFullscreenControl() {
+    function requestFullscreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen()
+        } else {
+            document.exitFullscreen()
+        }
+        window.setTimeout(screenChanged, 100)
+    }
+    document.body.addEventListener('dblclick', (event) => {
+        if (!document.fullscreenElement){
+            requestFullscreen()
+            window.setTimeout(screenChanged, 100)
+        }
+    })
+    const fullscreenBtn = document.querySelector('.fullscreen-btn')
+    fullscreenBtn.addEventListener('click', requestFullscreen)
+}
 setupFullscreenControl()
 
 window.addEventListener("beforeunload", (event) => {
     robot.disconnect()
     debug('Bye bye')
+})
+
+screen.orientation.addEventListener('change', () => {
+    screenChanged()
 })
 
         </script>
