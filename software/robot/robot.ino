@@ -60,15 +60,16 @@
 #include <BLEUtils.h>
 #include <BLEServer.h> 
 
-// speed variables
-int spd_left = 0;
-int spd_right = 0;
+struct RobotParams
+{
+  // speed variables
+  int spd_left;
+  int spd_right;
 
-// servo variables
-int servo1_deg = 0;
-int servo2_deg = 0;
-int servo1_deg_last = 0;
-int servo2_deg_last = 0;
+  // servo variables
+  int servo1_deg;
+  int servo2_deg;
+};
 
 #ifdef PIN_SERVO_1_SIG || PIN_SERVO_2_SIG
 Servo servo1;
@@ -77,6 +78,32 @@ Servo servo2;
 
 // BLE
 BLEServer *pServer = NULL;
+struct RobotParams params = {0, 0, 0, 0};
+struct RobotParams last_params = {0, 0, 0, 0};
+
+void set_speed_left(int spd) {
+  int pin1 = PIN_MOTOR_IN1;
+  int pin2 = PIN_MOTOR_IN2;
+  if (spd < 0) {
+    pin1 = PIN_MOTOR_IN2;
+    pin2 = PIN_MOTOR_IN1;
+    spd *= -1;
+  }
+  ledcWrite(pin1, 255);
+  ledcWrite(pin2, 255 - spd);
+}
+
+void set_speed_right(int spd) {
+  int pin1 = PIN_MOTOR_IN4;
+  int pin2 = PIN_MOTOR_IN3;
+  if (spd < 0) {
+    pin1 = PIN_MOTOR_IN3;
+    pin2 = PIN_MOTOR_IN4;
+    spd *= -1;
+  }
+  ledcWrite(pin1, 255);
+  ledcWrite(pin2, 255 - spd);
+}
 
 
 class MyBLEServerCallbacks: public BLEServerCallbacks {
@@ -94,17 +121,40 @@ class MyBLECallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
     String value = pCharacteristic->getValue();
     if (value.length() > 0) {
-      sscanf(value.c_str(), "ML%d MR%d SL%d SR%d", &spd_left, &spd_right, &servo2_deg, &servo1_deg);
+      sscanf(value.c_str(), "ML%d MR%d SL%d SR%d", &params.spd_left, &params.spd_right, &params.servo2_deg, &params.servo1_deg);
       
-      Serial.print("New speed values: L=");
-      Serial.print(spd_left);
-      Serial.print(" R=");
-      Serial.print(spd_right);
-      Serial.print(" SL=");
-      Serial.print(servo2_deg);
-      Serial.print(" SR=");
-      Serial.print(servo1_deg);
-      Serial.println();
+      if(memcmp(&params, &last_params, sizeof(RobotParams)) != 0)
+      {
+        if (params.spd_left != last_params.spd_left) {
+          set_speed_left(constrain(params.spd_left, -255, 255));
+        }
+        if (params.spd_right != last_params.spd_right) {
+          set_speed_right(constrain(params.spd_right, -255, 255));
+        }
+
+  #ifdef PIN_SERVO_1_SIG
+        if (params.servo1_deg != last_params.servo1_deg) {
+          servo1.write(constrain(params.servo1_deg, 0, 180));
+        }
+  #endif
+
+  #ifdef PIN_SERVO_2_SIG
+        if (params.servo2_deg != last_params.servo2_deg) {
+          servo2.write(constrain(params.servo2_deg, 0, 180));
+        }
+  #endif
+
+        Serial.print("New speed values: L=");
+        Serial.print(params.spd_left);
+        Serial.print(" R=");
+        Serial.print(params.spd_right);
+        Serial.print(" SL=");
+        Serial.print(params.servo2_deg);
+        Serial.print(" SR=");
+        Serial.print(params.servo1_deg);
+        Serial.println();
+        memcpy(&last_params, &params, sizeof(RobotParams));
+      }
     }
   }
 };
@@ -145,30 +195,6 @@ void setup_ble() {
    pAdvertising->start();
 }
 
-void set_speed_left(int spd) {
-  int pin1 = PIN_MOTOR_IN3;
-  int pin2 = PIN_MOTOR_IN4;
-  if (spd < 0) {
-    pin1 = PIN_MOTOR_IN4;
-    pin2 = PIN_MOTOR_IN3;
-    spd *= -1;
-  }
-  ledcWrite(pin1, 255);
-  ledcWrite(pin2, 255 - spd);
-}
-
-void set_speed_right(int spd) {
-  int pin1 = PIN_MOTOR_IN1;
-  int pin2 = PIN_MOTOR_IN2;
-  if (spd < 0) {
-    pin1 = PIN_MOTOR_IN2;
-    pin2 = PIN_MOTOR_IN1;
-    spd *= -1;
-  }
-  ledcWrite(pin1, 255);
-  ledcWrite(pin2, 255 - spd);
-}
-
 void setup() {
   Serial.begin(115200);
   Serial.println("PWM setup...");
@@ -181,20 +207,4 @@ void setup() {
 }
 
 void loop() {
-  set_speed_left(constrain(spd_left, -255, 255));
-  set_speed_right(constrain(spd_right, -255, 255));
-
-#ifdef PIN_SERVO_1_SIG
-  if (servo1_deg_last != servo1_deg) {
-    servo1.write(constrain(servo1_deg, 0, 180));
-    servo1_deg_last = servo1_deg;
-  }
-#endif
-
-#ifdef PIN_SERVO_2_SIG
-  if (servo2_deg_last != servo2_deg) {
-    servo2.write(constrain(servo2_deg, 0, 180));
-    servo2_deg_last = servo2_deg;
-  }
-#endif
 }
