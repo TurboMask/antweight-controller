@@ -93,7 +93,7 @@
         <canvas id="joystick"></canvas>
         <div id="debug"></div>
         <div id="servo-controls">
-            <input type="range" value="0" min="0" max="180" step="1" id="servo-left">
+            <input type="range" value="1" min="0" max="1" step="0.01" id="servo-left">
             <input type="range" value="0" min="0" max="180" step="1" id="servo-right">
         </div>
         <div class="buttons">
@@ -242,6 +242,7 @@ class Joystick {
         this.robot = robot
         this.joystickCanvas = document.getElementById('joystick')
         this.ctx = this.joystickCanvas.getContext('2d')
+        this.maxSpeed = 1.0
 
         this.joystickCanvas.addEventListener('mousedown', (event) => {
             if (event.buttons === 1) {
@@ -353,11 +354,16 @@ class Joystick {
         let right = jy - jx
         left = left * mag
         right = right * mag
-        left = Math.max(-255, Math.min(255, Math.round(left)))
-        right = Math.max(-255, Math.min(255, Math.round(right)))
+        left = Math.round(Math.max(-255, Math.min(255, left)) * this.maxSpeed)
+        right = Math.round(Math.max(-255, Math.min(255, right)) * this.maxSpeed)
         
         this.robot.setSpeed(left, right)
         this.drawJoystick(dx + this.centerX, dy + this.centerY)
+    }
+
+    setMaxSpeed(maxSpeed)
+    {
+        this.maxSpeed = maxSpeed
     }
 
     resetJoystick()
@@ -382,6 +388,7 @@ function setupServoControl(robot) {
 
     servoLeftEl.addEventListener('input', (e) => {
         robot.setServoLeft(e.target.value)
+        joystick.setMaxSpeed(e.target.value)
         localStorage.servoLeft = e.target.value
     })
     servoRightEl.addEventListener('input', (e) => {
